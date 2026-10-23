@@ -1,0 +1,30 @@
+# Credentials and computer-specific configuration
+.env
+.env.*
+!.env.example
+/.codex/
+/baidu-mcp/token.dpapi*
+/baidu-mcp/codex-config.toml
+/baidu-mcp/credential-saved.*
+/baidu-mcp/root-*-result.json
+
+# Private inventories, reports and operation/recovery journals
+/local-data/
+/盘点_*/
+/盘点记录_*.json
+/盘点追加_*.json
+/待核对目录_*.json
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Reinstallable dependencies and caches
+**/node_modules/
+**/__pycache__/
+*.py[cod]
+.venv/
+.npm-cache/
+.pytest_cache/
+*.log
+.DS_Store
+Thumbs.db

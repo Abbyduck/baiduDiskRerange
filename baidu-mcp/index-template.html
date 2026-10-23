@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>网盘资源目录索引</title>
+<style>
+:root{color-scheme:light dark;--bg:#f6f7f8;--fg:#21252a;--muted:#5e6873;--line:#d9dfe4;--panel:#fff;--accent:#175b80}
+@media(prefers-color-scheme:dark){:root{--bg:#181b1f;--fg:#e7ebef;--muted:#a9b2bc;--line:#3d444d;--panel:#23282e;--accent:#91c8e6}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,"Microsoft YaHei",sans-serif;line-height:1.6}
+main{max-width:1260px;margin:auto;padding:36px 24px}h1{font-size:28px;margin:0 0 8px}p{margin:0 0 22px;color:var(--muted)}
+.controls{display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin:22px 0}.field{display:flex;flex-direction:column;gap:5px}.search{flex:1;min-width:230px}
+label{font-size:14px;color:var(--muted)}input,select,button{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 12px}input{width:100%}button{cursor:pointer}button:disabled{opacity:.4;cursor:default}
+.result{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:14px;color:var(--muted)}.pager{display:flex;align-items:center;gap:10px}
+.table-scroll{overflow:auto}table{border-collapse:collapse;width:100%;background:var(--panel);font-size:14px}th,td{padding:15px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-weight:600;color:var(--muted)}td:nth-child(1){width:36%;overflow-wrap:anywhere}td:nth-child(2){width:11%;white-space:nowrap}td:nth-child(3){width:38%;overflow-wrap:anywhere}
+.num{font-variant-numeric:tabular-nums}.example{color:var(--muted);font-size:13px;margin-top:7px}.target{margin:0 0 7px}.check{color:var(--accent);font-size:13px}details summary{cursor:pointer;color:var(--accent)}.empty{padding:40px;text-align:center}footer{color:var(--muted);font-size:13px;margin-top:22px}
+@media(max-width:650px){main{padding:22px 14px}h1{font-size:23px}table{min-width:760px}.search{min-width:100%;flex-basis:100%}}
+</style>
+<main>
+<h1>网盘资源目录索引</h1>
+<p>%%SUMMARY%%</p>
+<div class="controls">
+ <div class="field search"><label for="query">按原路径、书系、课程或文件示例查找</label><input id="query" type="search" placeholder="例如：牛津树、女巫温妮、Cameo"></div>
+ <div class="field"><label for="destination">建议分区</label><select id="destination"><option value="">全部分区</option></select></div>
+ <div class="field"><label for="sort">排序</label><select id="sort"><option value="source">按原路径</option><option value="files">按文件数量</option><option value="bytes">按逻辑大小</option></select></div>
+</div>
+<div class="result"><span id="result-count" aria-live="polite"></span><div class="pager"><button id="prev" type="button">上一页</button><span id="page-number"></span><button id="next" type="button">下一页</button></div></div>
+<div class="table-scroll"><table><thead><tr><th>原资源单元与文件示例</th><th>文件与大小</th><th>建议去向</th><th>待核对</th></tr></thead><tbody id="rows"></tbody></table></div>
+<footer>基于文件名、扩展名和目录上下文判断。照片按来源组汇总；低把握项需另行确认。此页是建议索引，不会执行移动、覆盖或删除。</footer>
+</main>
+<script id="inventory-data" type="application/json">%%DATA%%</script>
+<script>
+const data=JSON.parse(document.getElementById('inventory-data').textContent);
+const query=document.getElementById('query'),destination=document.getElementById('destination'),sort=document.getElementById('sort'),rows=document.getElementById('rows');
+const pageSize=80;let page=0,filtered=[];
+const roots=[...new Set(data.flatMap(x=>Object.keys(x.destinations).map(p=>p.split('/')[0])))].sort();
+for(const root of roots){const option=document.createElement('option');option.value=root;option.textContent=root;destination.append(option);}
+const size=n=>n>=1024**4?(n/1024**4).toFixed(2)+' TiB':n>=1024**3?(n/1024**3).toFixed(2)+' GiB':(n/1024**2).toFixed(1)+' MiB';
+function td(text,className){const node=document.createElement('td');node.textContent=text;if(className)node.className=className;return node;}
+function render(){
+ const pages=Math.max(1,Math.ceil(filtered.length/pageSize));page=Math.min(page,pages-1);rows.replaceChildren();
+ for(const item of filtered.slice(page*pageSize,(page+1)*pageSize)){
+  const tr=document.createElement('tr'),source=td(item.source),example=document.createElement('div');example.className='example';example.textContent=item.examples.join('；');source.append(example);tr.append(source,td(item.files.toLocaleString()+' 个\n'+size(item.bytes),'num'));
+  const target=document.createElement('td'),entries=Object.entries(item.destinations).sort((a,b)=>b[1]-a[1]);
+  for(const [name,count] of entries.slice(0,3)){const line=document.createElement('div');line.className='target';line.textContent=name+' · '+count.toLocaleString()+' 个';target.append(line);}
+  if(entries.length>3){const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='查看另外 '+(entries.length-3)+' 个去向';details.append(summary);for(const [name,count] of entries.slice(3)){const line=document.createElement('div');line.textContent=name+' · '+count.toLocaleString()+' 个';details.append(line);}target.append(details);}
+  tr.append(target,td(item.lowConfidence?item.lowConfidence+' 个低把握文件':'—','check'));rows.append(tr);
+ }
+ if(!filtered.length){const tr=document.createElement('tr'),cell=td('没有匹配的资源单元','empty');cell.colSpan=4;tr.append(cell);rows.append(tr);}
+ document.getElementById('result-count').textContent='匹配 '+filtered.length.toLocaleString()+' 个资源单元';document.getElementById('page-number').textContent=(page+1)+' / '+pages;document.getElementById('prev').disabled=page===0;document.getElementById('next').disabled=page===pages-1;
+}
+function update(){const term=query.value.trim().toLocaleLowerCase(),root=destination.value;filtered=data.filter(item=>(!root||Object.keys(item.destinations).some(p=>p.split('/')[0]===root))&&(!term||[item.source,...Object.keys(item.destinations),...item.examples].join(' ').toLocaleLowerCase().includes(term)));filtered.sort(sort.value==='files'?(a,b)=>b.files-a.files:sort.value==='bytes'?(a,b)=>b.bytes-a.bytes:(a,b)=>a.source.localeCompare(b.source,'zh-CN'));page=0;render();}
+query.addEventListener('input',update);destination.addEventListener('change',update);sort.addEventListener('change',update);document.getElementById('prev').addEventListener('click',()=>{page--;render()});document.getElementById('next').addEventListener('click',()=>{page++;render()});update();
+</script>
+</html>

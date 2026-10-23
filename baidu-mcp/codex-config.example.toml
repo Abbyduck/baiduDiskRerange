@@ -1,0 +1,8 @@
+# Replace the project path before copying into your MCP configuration.
+[mcp_servers.baidu_netdisk]
+command = 'node'
+args = ['C:/path/to/baiduDiskRerange/baidu-mcp/bridge.mjs']
+startup_timeout_sec = 30
+tool_timeout_sec = 60
+enabled = true
+enabled_tools = ['file_list', 'file_doc_list', 'file_image_list', 'file_video_list', 'file_meta']
