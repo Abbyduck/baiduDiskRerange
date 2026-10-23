@@ -66,6 +66,24 @@ python -m unittest discover -s baidu-mcp -p 'test_*.py'
 
 历史分析脚本和操作服务的用途、报告重建顺序见 [使用说明](docs/使用说明.md)。本仓库没有自动搬移、自动删除或定时执行任务。
 
+## SQLite 整理元数据（阶段一）
+
+运行 `python baidu-mcp/build_package_catalog.py` 时，程序会核对已保存的完整实时索引，
+将其导入 `inventory.sqlite` 的 `catalog_scans`、`catalog_entries`，并把人工确认的展示名称、
+用途等保存到 `package_reviews`。相同 `fsid` 的整包改名、移动后仍复用已确认资料。
+SQLite 可比较相邻的完整快照；扫描未完成时，不会用不完整数据覆盖旧记录。
+
+仅在需要时人工修改整理说明：
+
+```powershell
+python baidu-mcp/review_metadata.py --path "/我的资源/某课程" --name "某课程 · 中文说明"
+python baidu-mcp/build_package_catalog.py
+```
+
+`review_metadata.py` **只修改本地 SQLite，不修改百度网盘**。`0_` / `1_` 仅从实际整包文件夹名读取。
+这次仍保留旧 JSON 快照、删除和恢复依据；去重执行逻辑没有新增自动操作能力。
+完整边界和迁移限制见 `docs/SQLite整理升级说明.md`。
+
 ## 本地数据与恢复
 
 - `inventory.sqlite`：原始完整盘点，保留身份、路径、格式、大小和内容指纹等字段。
