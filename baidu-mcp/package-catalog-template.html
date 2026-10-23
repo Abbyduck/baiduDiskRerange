@@ -14,6 +14,7 @@
 <p class="intro">以恩恩的学习资料为主，先说明每份资料里有什么、能用来做什么。常用内容继续从「00熏听」进入；儿童启蒙的家长配套，与成人自己学英语的资料分别理解。</p>
 <div class="steps" aria-label="已确认的整理顺序"><span><b>1</b>确认整包边界</span><span class="current"><b>2</b>了解内容与大类</span><span><b>3</b>整包归位</span><span><b>4</b>再细分英文</span></div>
 <div class="facts"><div class="fact"><strong id="total">—</strong><small>份非空整包与资料组</small></div><div class="fact"><strong id="english">—</strong><small>份建议归入恩恩英文</small></div><div class="fact"><strong>3 岁</strong><small>恩恩当前年龄 · 资源可跨阶段储备</small></div><div class="fact"><strong>名称</strong><small>你的主要查找方式</small></div></div>
+<p class="evidence" id="snapshotDiff" aria-live="polite"></p>
 <section aria-labelledby="focusHeading"><div class="sectionhead"><h2 id="focusHeading">先看你提到的四组</h2><small>主题放在一起看，每份来源仍保留</small></div><div class="focusnav" role="tablist" aria-label="重点资料组" id="focusNav"></div><div class="focusbox" id="focusBox" role="tabpanel" aria-label="重点资料介绍"></div></section>
 <p class="evidence" id="evidence"></p>
 <section class="catalog-top" id="catalog" aria-labelledby="catalogHeading"><div class="sectionhead"><h2 id="catalogHeading">逐包内容介绍</h2><div class="download"><a href="整包内容介绍.md" download>文字版</a><a href="整包内容介绍.json" download>结构化清单</a></div></div>
@@ -39,6 +40,10 @@ const searches=new Map(sorted.map(x=>[x.id,normalize([x.displayTitle,x.title,x.p
 $('total').textContent=n(DATA.packages.length);
 $('english').textContent=n(DATA.packages.filter(x=>x.category==='恩恩学习资料 / 英文').length);
 $('evidence').innerHTML=`<b>这次的判断依据：</b>${esc(DATA.meta.evidence)} 数字来自已保存的完整索引，并排除已记录删除的 ${n(DATA.meta.knownRemovedCount)} 个目录；不是重新遍历。分类是内容理解草案，个别系列的语言、版本或用途仍需核对。`;
+const change=DATA.meta.snapshotDiff;
+$('snapshotDiff').textContent=change?.previousScanId
+  ? `与上次完整扫描相比（按文件条目而不是资源包）：新增 ${n(change.added)}、减少 ${n(change.removed)}、移动或改名 ${n(change.movedOrRenamed)}、内容元信息变化 ${n(change.modified)}。`
+  : '这是当前 SQLite 已保存的第一份完整实时快照；后续完整盘点可以比较变化。';
 $('footer').textContent=`索引记录：${DATA.meta.sourceScan.finishedAt||DATA.meta.sourceScan.completedAt||DATA.meta.sourceScan.completed_at||'2026-10-21'} · ${n(DATA.meta.indexedFiles)} 个有效文件已计入整包或散文件 · 本页生成后，云盘发生的变化需另行更新索引。`;
 Object.entries(DATA.categories).sort((a,b)=>(a[0].startsWith('恩恩学习资料')?0:a[0].startsWith('大人学习资料')?1:2)-(b[0].startsWith('恩恩学习资料')?0:b[0].startsWith('大人学习资料')?1:2)||a[0].localeCompare(b[0],'zh-CN')).forEach(([c,num])=>{const o=document.createElement('option');o.value=c;o.textContent=`${c}（${num}）`;$('category').append(o)});
 for(const term of ['牛津树','超妈','Susan','泛听','小猪佩奇','自然拼读']){const b=document.createElement('button');b.className='chip';b.textContent=term;b.onclick=()=>{$('search').value=term;page=1;render()};$('quick').append(b)}
