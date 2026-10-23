@@ -10,6 +10,7 @@ CONTAINERS = {
     '/01恩恩学习资料': '学习资料总分类',
     '/01恩恩学习资料/小孩资源': '多主题资源总分类',
     '/01恩恩学习资料/小孩资源/儿童动画片': '多部动画的分类容器',
+    '/01恩恩学习资料/小孩资源/牛津树': '用户确认的自建分类容器；内部资料组单独识别',
     '/01恩恩学习资料/小孩资源/3岁': '按年龄归类的多套资源',
     '/01恩恩学习资料/小孩资源/3岁以后': '按年龄归类的多套资源',
     '/01恩恩学习资料/中文': '学科分类',
@@ -27,6 +28,14 @@ CONTAINERS = {
     '/来自：iPhone': '受保护的手机来源',
     '/apps': '受保护的应用数据',
 }
+# Oxford's topical child groups are not independently verified transfer packages.
+NON_ATOMIC_CONTAINERS = frozenset({'/01恩恩学习资料/小孩资源/牛津树'})
+
+
+def deletion_candidate_boundary(boundary):
+    return boundary['parentContainer'] not in NON_ATOMIC_CONTAINERS
+
+
 PROTECTED = ('/00熏听','/06照片','/来自：iPhone','/apps')
 
 
