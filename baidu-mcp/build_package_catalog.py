@@ -13,6 +13,7 @@ from pathlib import Path
 from analyze_inventory import file_kind
 from dedup_live_index import atomic_json
 from package_boundaries import CONTAINERS,infer_roots,package_owner,protected
+from sqlite_inventory import load_complete_snapshot,observe_packages,snapshot_diff
 
 BASE=Path(__file__).resolve().parents[1]
 from project_paths import DATA_DIR
@@ -156,29 +157,29 @@ def semantic(x):
 
 
 def load_saved():
-    scan=json.loads((OUT/'实时索引/latest-scan.json').read_text(encoding='utf-8'))
-    if scan.get('status')!='complete' or not re.fullmatch(r'scan-[a-f0-9]+',scan['directory']):raise ValueError('Incomplete saved scan.')
+    # Original JSON scans remain untouched for recovery and auditing.
+    # Reports read the verified completed snapshot through SQLite.
+    scan,records=load_complete_snapshot(OUT)
     state=json.loads((OUT/'实时索引/known-deletions.json').read_text(encoding='utf-8'))
     removed=set(state.get('removed',[]));pending=set(state.get('pending',[]));excluded=removed|pending
-    records=[]
-    for i in range(1,scan['pages']+1):records.extend(json.loads((OUT/'实时索引'/scan['directory']/f'page-{i:05d}.json').read_text(encoding='utf-8'))['items'])
-    assert len(records)==scan['entries']
-    records=[x for x in records if not any('/'.join(x['path'].split('/')[:n]) in excluded for n in range(2,len(x['path'].split('/'))+1))]
+    records=[x for x in records if not any('/'.join(x['path'].split('/')[:n]) in excluded
+             for n in range(2,len(x['path'].split('/'))+1))]
     return scan,state,records
-
 
 def main():
     scan,state,records=load_saved()
-    containers={**CONTAINERS,OXFORD:'用户确认：自己建立的牛津树分类'}
-    roots=infer_roots([x['path'] for x in records if x['isdir']],containers)
-    profiles={p:{'id':'B'+hashlib.sha256(p.encode()).hexdigest()[:10],'path':p,'title':p.rsplit('/',1)[-1],
+    roots=infer_roots([x['path'] for x in records if x['isdir']],CONTAINERS)
+    by_path={x['path']:x for x in records}
+    profiles={p:{'id':'B'+hashlib.sha256(p.encode()).hexdigest()[:10],
+        'fsid':by_path[p].get('fsid') or by_path[p].get('fs_id'),
+        'path':p,'title':p.rsplit('/',1)[-1],
         'files':0,'folders':0,'bytes':0,'kinds':collections.Counter(),'examples':collections.defaultdict(list),
         'top':[],'directoryNames':set(),'boundary':b,'entry':'熏听常用入口' if p.startswith('/00熏听/') else '资料库',
         'boundaryNote':'用户确认整包，保持内部结构' if p=='/我的资源/泛听泛读书单（新）' else
           '位于用户自建的牛津树分类下；介绍这份资料，不据此确认原始转存边界' if p.startswith(OXFORD+'/') else
           '使用中的熏听资料组，保留原位置与编排' if p.startswith('/00熏听/') else
           '依据分类容器推断的整包或资料组；原转存边界尚未逐份确认'} for p,b in roots.items()}
-    loose=collections.defaultdict(list);by_path={x['path']:x for x in records}
+    loose=collections.defaultdict(list)
     for r in records:
         owner=package_owner(r['path'],roots)
         if not owner:
@@ -226,11 +227,14 @@ def main():
         'adultEnglish':'用户说明：成人英文学习在英文资料；不把所有英文内容归成人',
         'cloudMutationsAuthorizedByThisCatalog':False}
     atomic_json(OUT/'用户整理偏好与边界说明.json',prefs)
+    observe_packages(packages,OUT)
+    changes=snapshot_diff(OUT,scan['directory'])
     focuses=focus_sections(packages,records,by_path)
     data={'meta':{'packageCount':len(packages),'emptyGroups':len(empty),'indexedFiles':sum(not x['isdir'] for x in records),
         'sourceScan':scan,'knownRemovedCount':len(state.get('removed',[])),'pendingExcludedCount':len(state.get('pending',[])),
         'evidence':'依据完整目录与文件清单、名称、格式及配套结构；没有逐个阅读正文或播放媒体，照片仅按组记录。',
-        'phase':'了解整包内容与大类；未执行移动、重命名或新增删除'},
+        'phase':'了解整包内容与大类；未执行移动、重命名或新增删除',
+        'snapshotDiff':changes},
         'preferences':prefs,'focus':focuses,'packages':packages,'looseGroups':loose_groups,'empty':empty,
         'categories':dict(collections.Counter(x['category'] for x in packages)),
         'families':dict(collections.Counter(x['family'] for x in packages))}
