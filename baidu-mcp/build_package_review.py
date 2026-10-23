@@ -9,7 +9,7 @@ from pathlib import Path
 from dedup_review_server import OUT,Tree,stamp,package_deletion_mode
 from dedup_live_index import atomic_json
 from analyze_folder_duplicates import normalized_title
-from package_boundaries import CONTAINERS,infer_roots,package_owner,exact_groups
+from package_boundaries import CONTAINERS,infer_roots,package_owner,exact_groups,deletion_candidate_boundary
 from package_containment import find_package_coverage
 
 
@@ -33,7 +33,8 @@ def main(quiet=False):
             if x['isdir']:
                 ch=tree.nodes[x['path']];n['files']+=ch['files'];n['folders']+=1+ch['folders'];n['bytes']+=ch['bytes']
             else:n['files']+=1;n['bytes']+=x['size']
-    roots=infer_roots(tree.nodes)
+    # Self-made topical directory groups are not verified independent package roots.
+    roots={p:b for p,b in infer_roots(tree.nodes).items() if deletion_candidate_boundary(b)}
     assert not any(a!=b and a.startswith(b+'/') for a in roots for b in roots)
     stats=tree.nodes
     def unit(p):
